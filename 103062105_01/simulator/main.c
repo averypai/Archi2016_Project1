@@ -28,6 +28,7 @@ unsigned char tempmemory[1024]={'\0'};
 void print();
 unsigned int execI(Instruction ins);
 unsigned int execR(Instruction ins);
+unsigned int execJ(Instruction ins);
 int cycle=0;
 void readfile(){
     FILE*iimage,*dimage;
@@ -61,7 +62,6 @@ void readfile(){
             {
                 inst[j]=inst[j]<<8|instmemory[i][k];//inst number
             }
-            printf("%08x\n",inst[j] );
             j++;
         }
         i++;
@@ -74,7 +74,6 @@ void readfile(){
             {
                 sp=sp<<8|datamemory[0][k];//initial sp
             }
-            //printf("%d\n",sp);
             reg[29]=sp;
         }
         else if(i==1)
@@ -83,7 +82,6 @@ void readfile(){
             {
                 dnum=dnum<<8|datamemory[1][k];//data number
             }
-//            printf("%d€n",dnum);
         }
         else if(i>=2)
         {//store i>1 data
@@ -94,14 +92,10 @@ void readfile(){
                 temp_datamemory[(i-2)*4+2]=datamemory[i][2];
                 temp_datamemory[(i-2)*4+3]=datamemory[i][3];
             }
-            printf("====DATA====%08x\n",datamemory[i][0]);
-            printf("%08x\n",datamemory[i][1]);
-            printf("%08x\n",datamemory[i][2]);
-            printf("%08x\n==========\n\n",datamemory[i][3]);
-            printf("====temp====%08x\n",temp_datamemory[(i-2)*4]);
-            printf("%08x\n",temp_datamemory[(i-2)*4+1]);
-            printf("%08x\n",temp_datamemory[(i-2)*4+2]);
-            printf("%08x\n==========\n",temp_datamemory[(i-2)*4+3]);
+            printf("%02x\n", temp_datamemory[(i-2)*4]);
+            printf("%02x\n", temp_datamemory[(i-2)*4+1]);
+            printf("%02x\n", temp_datamemory[(i-2)*4+2]);
+            printf("%02x\n", temp_datamemory[(i-2)*4+3]);
         }
         i++;
     }
@@ -131,11 +125,11 @@ void cut(){//get rs rt rd shamt funct address opcode
         printf("%05x----Rshamt\n",ins.shamt);
         printf("0x%02x----Rfunct\n",ins.funct);
         execR(ins);
-	    //printf("%02x----funct\n",ins.funct);
     }
     else if(ins.opcode==jump||ins.opcode==jal)
     {
         ins.shamt=(inst[increasing]<<6)>>6;
+        execJ(ins);
     }
     else
     {
@@ -147,6 +141,25 @@ void cut(){//get rs rt rd shamt funct address opcode
     }
 }
 
+unsigned int execJ(Instruction ins)
+{printf("exeJJJJJJJJJJJJJJJJJJJJJJJJJJ\n");
+    unsigned int newhead=((PC+increasing*4+4)>>28)<<28;
+    unsigned int newaddress=ins.shamt<<2;
+    printf("newhead=%04x newaddress=%08x\n\n",newhead,newaddress);
+    if(ins.opcode==jump)
+    {
+        increasing=((newhead|newaddress)-PC)/4-1;
+        printf("%08x\n",PC );
+    }
+    else
+    {
+        reg[31]=PC+increasing*4+4;
+        increasing=((newhead|newaddress)-PC)/4-1;
+        printf("PC=%08x\n",PC );
+    }
+    increasing++;
+    print();
+}
 unsigned int execI(Instruction ins)
 {
     int flag=0;
@@ -160,26 +173,30 @@ unsigned int execI(Instruction ins)
                 ins.shamt=ins.shamt|0xFFFF0000;
             }
             reg[ins.rt]=reg[ins.rs]+ins.shamt;
-            /*printf("%08x\n",ins.shamt-reg[ins.rs]);
+            
             printf("shamt:%04x\n",ins.shamt);
             printf("rs:%02x\n",ins.rs);
             printf("rt:%02x\n",ins.rt);
             printf("reg[rs]:%08x\n",reg[ins.rs]);
-            printf("reg[rt]:%08x\n",reg[ins.rt]);*/
+            printf("reg[rt]:%08x\n",reg[ins.rt]);
             break;
         case 0x09://no overflow detection
             reg[ins.rt]=reg[ins.rs]+ins.shamt;
             break;
         case 0x23:
             sign=ins.shamt>>15;
-            printf("%08x\n",ins.shamt);
+            printf("%d\n",sign);
             if(sign==1)
             {
                 ins.shamt=ins.shamt|0xFFFF0000;
             }
             printf("%08x\n",ins.shamt);
-            for(int i=0;i<4;i++)    
+            printf("%05x\n",ins.rs);
+            printf("%05x\n",ins.rt);
+            for(int i=0;i<4;i++){    
                 reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt+i];
+                printf("%02x\n----%d\n",reg[ins.rt],i);
+            }
             break;
         case 0x21:
             sign=((reg[ins.rs+ins.shamt]<<16)>>15);
@@ -216,10 +233,13 @@ unsigned int execI(Instruction ins)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
-            datamemory[ins.rs+ins.shamt][0]=reg[ins.rt]>>24;
-            datamemory[ins.rs+ins.shamt][1]=(reg[ins.rt]<<8)>>24;
-            datamemory[ins.rs+ins.shamt][2]=(reg[ins.rt]<<16)>>24;
-            datamemory[ins.rs+ins.shamt][3]=(reg[ins.rt]<<24)>>24;
+            datamemory[ins.rs+ins.shamt][0]=((reg[ins.rt]<<24)>>24);
+            datamemory[ins.rs+ins.shamt][1]=((reg[ins.rt]<<16)>>24);
+            datamemory[ins.rs+ins.shamt][2]=((reg[ins.rt]<<8)>>24);
+            datamemory[ins.rs+ins.shamt][3]=(reg[ins.rt]>>24);
+            
+            
+            
             break;
         case 0x29:
             datamemory[ins.rs+ins.shamt][0]=(unsigned char)(reg[ins.rt]&0x0000FFFF)>>24;
@@ -282,6 +302,7 @@ unsigned int execI(Instruction ins)
 }
 unsigned int execR(Instruction ins)
 {
+    //unsigned int sign=((reg[ins.rs+ins.shamt]<<16)>>15);
     switch (ins.funct) {
             printf("%d---funct\n",ins.funct);
         case 0x20:
@@ -320,9 +341,9 @@ unsigned int execR(Instruction ins)
         case 0x03:
             reg[ins.rd]=reg[ins.rt]>>ins.shamt;
             break;
-        case 0x08:
-            PC=reg[29];
-	    increasing=0;
+        case 0x08://QAQ
+            increasing=(reg[ins.rs]-PC)/4-1;
+            increasing++;
             break;
         default:
             break;
@@ -336,7 +357,7 @@ unsigned int execR(Instruction ins)
 
 void print(){
     int i=0;
-    printf("cycle = %d\n",cycle);
+    printf("cycle %d\n",cycle);
     for(i=0;i<32;i++)
     {
         printf("$%d:0x%08X\n",i,reg[i]);
@@ -348,13 +369,14 @@ int main()
 {
     readfile();
 
-    while (cycle<5) {
+    while (cycle<12) {
        if(cycle==0){
     	print();
     	cycle++;
     	continue;
 	}
 	 cut();
+     printf("the end of cycle==========%d\n",cycle);
         cycle++;
     }
     return 0;
