@@ -94,6 +94,14 @@ void readfile(){
                 temp_datamemory[(i-2)*4+2]=datamemory[i][2];
                 temp_datamemory[(i-2)*4+3]=datamemory[i][3];
             }
+            printf("====DATA====%08x\n",datamemory[i][0]);
+            printf("%08x\n",datamemory[i][1]);
+            printf("%08x\n",datamemory[i][2]);
+            printf("%08x\n==========\n\n",datamemory[i][3]);
+            printf("====temp====%08x\n",temp_datamemory[(i-2)*4]);
+            printf("%08x\n",temp_datamemory[(i-2)*4+1]);
+            printf("%08x\n",temp_datamemory[(i-2)*4+2]);
+            printf("%08x\n==========\n",temp_datamemory[(i-2)*4+3]);
         }
         i++;
     }
@@ -163,7 +171,15 @@ unsigned int execI(Instruction ins)
             reg[ins.rt]=reg[ins.rs]+ins.shamt;
             break;
         case 0x23:
-            reg[ins.rt]=reg[ins.rs+ins.shamt];
+            sign=ins.shamt>>15;
+            printf("%08x\n",ins.shamt);
+            if(sign==1)
+            {
+                ins.shamt=ins.shamt|0xFFFF0000;
+            }
+            printf("%08x\n",ins.shamt);
+            for(int i=0;i<4;i++)    
+                reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt+i];
             break;
         case 0x21:
             sign=((reg[ins.rs+ins.shamt]<<16)>>15);
