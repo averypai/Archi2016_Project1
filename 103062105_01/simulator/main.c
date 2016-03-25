@@ -115,7 +115,6 @@ Instruction cut(){//get rs rt rd shamt funct address opcode
         ins.funct=(inst[increasing]<<26)>>26;
         if((ins.funct!=0x00)&&(ins.funct!=0x08)&&(ins.rd==0))
         {
-            printf("0x%02x\n", ins.funct);
             error_flag[0]=1;
         }
         if((ins.rs>32)||(ins.rs<0))
@@ -147,18 +146,19 @@ Instruction cut(){//get rs rt rd shamt funct address opcode
         execJ(ins);
     }
     else
-    {
+    {printf("0x%02x\n", ins.opcode);
         ins.rs=(inst[increasing]<<6)>>27;
         ins.rt=(inst[increasing]<<11)>>27;
         ins.shamt=(inst[increasing]<<16)>>16;
-        if((ins.funct==0x08)||(ins.funct==0x09)||(ins.funct==0x23)||(ins.funct==0x21)
-            ||(ins.funct==0x25)||(ins.funct==0x20)||(ins.funct==0x24)||(ins.funct==0x0F)
-            ||(ins.funct==0x0C)||(ins.funct==0x0D)||(ins.funct==0x0E)||(ins.funct==0x0A))
+        if((ins.opcode==0x08)||(ins.opcode==0x09)||(ins.opcode==0x23)||(ins.opcode==0x21)
+            ||(ins.opcode==0x25)||(ins.opcode==0x20)||(ins.opcode==0x24)||(ins.opcode==0x0F)
+            ||(ins.opcode==0x0C)||(ins.opcode==0x0D)||(ins.opcode==0x0E)||(ins.opcode==0x0A))
         {
             if(ins.rt==0)
             {   
                 printf("%d\n", ins.rt);
                 error_flag[0]=1;
+                return ins;
             }
         }
         execI(ins);
