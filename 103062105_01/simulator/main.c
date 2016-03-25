@@ -93,10 +93,10 @@ void readfile(){
                 temp_datamemory[(i-2)*4+2]=datamemory[i][2];
                 temp_datamemory[(i-2)*4+3]=datamemory[i][3];
             }
-       /*     printf("%02x\n", temp_datamemory[(i-2)*4]);
+            printf("%02x\n", temp_datamemory[(i-2)*4]);
             printf("%02x\n", temp_datamemory[(i-2)*4+1]);
             printf("%02x\n", temp_datamemory[(i-2)*4+2]);
-            printf("%02x\n", temp_datamemory[(i-2)*4+3]);*/
+            printf("%02x\n", temp_datamemory[(i-2)*4+3]);
         }
         i++;
     }
@@ -187,35 +187,39 @@ unsigned int execI(Instruction ins)
             break;
         case 0x23:
             sign=ins.shamt>>15;
-            //printf("%d\n",sign);
+            printf("LWWWWWWW=======%d\n",sign);
             if(sign==1)
             {
                 ins.shamt=ins.shamt|0xFFFF0000;
             }
-            /*printf("%08x\n",ins.shamt);
+            printf("%08x\n",ins.shamt);
             printf("%05x\n",ins.rs);
-            printf("%05x\n",ins.rt);*/
-            for(int i=0;i<4;i++){    
+            printf("%05x\n",ins.rt);
+             reg[ins.rt]=temp_datamemory[ins.rs+ins.shamt];
+            for(int i=1;i<4;i++){    
                 reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt+i];
-                //printf("%02x\n----%d\n",reg[ins.rt],i);
+            printf("%02x---%d\n",reg[ins.rt],i);
             }
             break;
         case 0x21:
-            sign=ins.shamt>>15;
             if(sign==1)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
-            sign=((reg[ins.rs+ins.shamt]<<16)>>15);
+            sign=temp_datamemory[ins.rs+ins.shamt]>>7;
+            reg[ins.rt]=sign;
             if(sign==1)
             {
-                reg[ins.rt]=0xFFFF0000|temp_datamemory[ins.rs+ins.shamt];
+                reg[ins.rt]=0xFFFFFF00|temp_datamemory[ins.rs+ins.shamt];
                 reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt+1];
             }
             else{
-                reg[ins.rt]=reg[ins.rt]<<16|temp_datamemory[ins.rs+ins.shamt];
+                //printf("%02x\n",temp_datamemory[ins.rs+ins.shamt]);
+                reg[ins.rt]=((reg[ins.rt]>>8)<<8)|temp_datamemory[ins.rs+ins.shamt];
                 reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt+1];
+                //printf("%02x----2\n",reg[ins.rt]);
             }
+            printf("sign==lh===%d %d %d %d\n",sign,ins.rt,ins.rs,ins.shamt );
             break;
         case 0x25:
             sign=ins.shamt>>15;
@@ -227,27 +231,40 @@ unsigned int execI(Instruction ins)
             reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt+1];
             break;
         case 0x20:
-            sign=ins.shamt>>7;
+            sign=ins.shamt>>15;
             if(sign==1)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
+            sign=temp_datamemory[ins.rs+ins.shamt]>>7;
+            if(sign==1)
+            {
+                
+                reg[ins.rt]=0xFFFFFF00|temp_datamemory[ins.rs+ins.shamt];
+                //reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt+1];
+            }
+            else{
+              //  printf("sign=====%d %d\n",sign,ins.rt );
+                reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt];
+               // reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt+1];
+            }/*
             sign=reg[ins.rs+ins.shamt]>>31;
             if(sign==1)
             {
-                reg[ins.rt]=0xFFFFFF00|temp_datamemory[ins.rs+ins.shamt];
+                reg[ins.rt]=(int)(0xFFFFFF00|temp_datamemory[ins.rs+ins.shamt]);
             }
             else{
-                reg[ins.rt]=temp_datamemory[ins.rs+ins.shamt];
-            }
+                reg[ins.rt]=(int)temp_datamemory[ins.rs+ins.shamt];
+            }*/
+            printf("%d  %d   %d========\n",ins.shamt,ins.rs,ins.rt);
             break;
         case 0x24:
-            sign=ins.shamt>>7;
+            sign=ins.shamt>>15;
             if(sign==1)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
-             reg[ins.rt]=temp_datamemory[ins.rs+ins.shamt];
+             reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt];
             break;
         case 0x2B:
             //printf("I AM RAAAAAAAAA\n");
@@ -284,11 +301,14 @@ unsigned int execI(Instruction ins)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
-            datamemory[ins.rs+ins.shamt][0]=(unsigned char)(reg[ins.rt]&0x0000FFFF)>>24;
-            datamemory[ins.rs+ins.shamt][1]=((reg[ins.rt]&0x0000FFFF)<<8)>>24;
-
-            temp_datamemory[ins.rs+ins.shamt]=((reg[ins.rt]&0x0000FFFF)>>24);
-            temp_datamemory[ins.rs+ins.shamt+1]=((reg[ins.rt]&0x0000FFFF)<<8)>>16;
+            datamemory[ins.rs+ins.shamt][0]=(char)(reg[ins.rt]&0x0000FFFF)>>24;
+            datamemory[ins.rs+ins.shamt][1]=((reg[ins.rt]&0x0000FFFF)<<16)>>16;
+            //printf("%08x\n",datamemory[ins.rs+ins.shamt][0]);
+            //printf("%08x\n",datamemory[ins.rs+ins.shamt][1]);
+            temp_datamemory[ins.rs+ins.shamt]=(char)(reg[ins.rt]&0x0000FFFF)>>24;
+            temp_datamemory[ins.rs+ins.shamt+1]=((reg[ins.rt]&0x0000FFFF)<<16)>>16;
+            //printf("%08x\n",temp_datamemory[ins.rs+ins.shamt]);
+            //printf("%08x====================SH\n",temp_datamemory[ins.rs+ins.shamt+1]);
             break;
         case 0x28:
             sign=ins.shamt>>15;
@@ -297,14 +317,7 @@ unsigned int execI(Instruction ins)
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
             datamemory[ins.rs+ins.shamt][0]=(reg[ins.rt]&0x000000FF)>>24;
-//datamemory[ins.rs+ins.shamt][1]=((reg[ins.rt]&0x000000FF)<<8)>>24;
-  //          datamemory[ins.rs+ins.shamt][2]=((reg[ins.rt]&0x000000FF)<<16)>>24;
-    //        datamemory[ins.rs+ins.shamt][3]=((reg[ins.rt]&0x000000FF)<<24)>>24;
-
             temp_datamemory[ins.rs+ins.shamt]=(char)((reg[ins.rt]&0x000000FF)>>24);
-      //      temp_datamemory[ins.rs+ins.shamt+1]=(char)((reg[ins.rt]&0x000000FF)>>16);
-        //    temp_datamemory[ins.rs+ins.shamt+2]=(char)((reg[ins.rt]&0x000000FF)>>8);
-          //  temp_datamemory[ins.rs+ins.shamt+3]=(char)(reg[ins.rt]&0x000000FF);
             break;
         case 0x0F:
             reg[ins.rt]=ins.shamt<<16;
@@ -313,7 +326,7 @@ unsigned int execI(Instruction ins)
             reg[ins.rt]=reg[ins.rs]&ins.shamt;
             break;
         case 0x0D:
-            reg[ins.rd]=reg[ins.rs]|ins.shamt;
+            reg[ins.rt]=reg[ins.rs]|ins.shamt;
             break;
         case 0x0E:
             reg[ins.rt]=~(reg[ins.rs]|ins.shamt);
@@ -347,10 +360,10 @@ unsigned int execI(Instruction ins)
             }
             if(reg[ins.rs]!=reg[ins.rt])
             {
-                printf("In BNE======%d %d=====increasing======%d\n",ins.rs,ins.rt,increasing);
+               // printf("In BNE======%d %d=====increasing======%d\n",ins.rs,ins.rt,increasing);
                 flag=1;
                 increasing+=ins.shamt+1;
-                printf("shamt======%d  =====increasing======%d\n",ins.shamt,increasing);
+               // printf("shamt======%d  =====increasing======%d\n",ins.shamt,increasing);
                 print();
 
             }
@@ -455,7 +468,7 @@ int main()
 {
     readfile();
 
-    while (cycle<37) {
+    while (cycle<29) {
        if(cycle==0){
     	print();
     	cycle++;
