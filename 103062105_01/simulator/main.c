@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include "regfile.c"
-//#include "memory.c"
 #include "instruction.c"
 
 typedef struct Instruction{
@@ -24,7 +22,7 @@ unsigned int increasing=0;
 unsigned char instmemory[256][4]={'\0'};
 unsigned char datamemory[256][4]={'\0'};
 unsigned char temp_datamemory[1024]={'\0'};
-//unsigned char tempmemory[1024]={'\0'};
+
 void print();
 void _error();
 Instruction execI(Instruction ins);
@@ -139,11 +137,13 @@ Instruction cut(){//get rs rt rd shamt funct address opcode
             return ins;
         }
         ins=execR(ins);
+        if(ins.opcode==halt)_error();
     }
     else if(ins.opcode==jump||ins.opcode==jal)
     {
         ins.shamt=(inst[increasing]<<6)>>6;
         ins=execJ(ins);
+        if(ins.opcode==halt)_error();
     }
     else
     {printf("0x%02x\n", ins.opcode);
@@ -158,15 +158,13 @@ Instruction cut(){//get rs rt rd shamt funct address opcode
         {
             if(ins.rt==0)
             {   
-                printf("WRONG");
                 error_flag[0]=1;
             }
             else
             {}
         }
-        printf("WHY\n");
         ins=execI(ins);
-        _error();
+        if(ins.opcode==halt)_error();
     }
     return ins;
 }
@@ -490,15 +488,13 @@ Instruction execI(Instruction ins)
         default:
             break;
     }
-    //error handle
-    printf("BREAKKKKKKKKKKKKKK\n");
     if(!flag&&(ins.opcode!=halt))
     {
         increasing++;
         print();
     }
     else if(ins.opcode==halt){
-        //return ins;
+        return ins;
     }
 }
 Instruction execR(Instruction ins)
