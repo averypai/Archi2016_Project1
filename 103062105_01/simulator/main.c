@@ -193,7 +193,7 @@ Instruction execI(Instruction ins)
     int flag=0;
     unsigned int sign=0;
     switch (ins.opcode) {
-        case 0x08:
+        case 0x08://addi
             sign=ins.shamt>>15;
             if(sign==1)
             {
@@ -209,7 +209,7 @@ Instruction execI(Instruction ins)
                 }
             }
             break;
-        case 0x09://no overflow detection
+        case 0x09://addiu//no overflow detection
         if(error_flag[0]==0)
             reg[ins.rt]=reg[ins.rs]+ins.shamt;
             break;
@@ -228,12 +228,11 @@ Instruction execI(Instruction ins)
                 error_flag[2]=1;
                 ins.opcode=halt;
             }
-           // printf("====2====\n");
             if(((reg[ins.rs]+ins.shamt)%4)!=0)
             {
                 error_flag[3]=1;
                 ins.opcode=halt;
-            }//printf("====%d %d\n\n====\n",error_flag[0],error_flag[1]);
+            }
             
             if((error_flag[2]==1)||(error_flag[3])==1)
                 return ins;
@@ -245,7 +244,6 @@ Instruction execI(Instruction ins)
                     reg[ins.rt]=((reg[ins.rt]<<8)|temp_datamemory[reg[ins.rs]+ins.shamt+i]);
                 }
             }
-           // printf("====4====\n");
             break;
         case 0x21://lh
             sign=(ins.shamt>>15);
@@ -254,9 +252,9 @@ Instruction execI(Instruction ins)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
-            printf("%08X\n",ins.shamt);
-            printf("%08X\n",reg[ins.rs]);
-            printf("%08X\n",ins.shamt+reg[ins.rs]);
+           // printf("%08X\n",ins.shamt);
+           // printf("%08X\n",reg[ins.rs]);
+           // printf("%08X\n",ins.shamt+reg[ins.rs]);
             if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1022))
             {
                 error_flag[2]=1;
@@ -272,7 +270,7 @@ Instruction execI(Instruction ins)
             sign=temp_datamemory[reg[ins.rs]+ins.shamt]>>7;
             reg[ins.rt]=sign;
             if(error_flag[0]==0){
-                    if(sign==1)
+                if(sign==1)
                 {
                     reg[ins.rt]=0xFFFFFF00|temp_datamemory[reg[ins.rs]+ins.shamt];
                     reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[reg[ins.rs]+ins.shamt+1];
@@ -353,7 +351,7 @@ Instruction execI(Instruction ins)
              reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[reg[ins.rs]+ins.shamt];
             break;
         case 0x2B://sw
-            sign=ins.shamt>>31;
+            sign=ins.shamt>>15;
             if(sign==1)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
@@ -369,10 +367,8 @@ Instruction execI(Instruction ins)
             {
                 error_flag[2]=1;
                 ins.opcode=halt;
-                _error();
-                return ins;
             }
-            if((ins.shamt%4)!=0)
+            if(((reg[ins.rs]+ins.shamt)%4)!=0)
             {
                 error_flag[3]=1;
                 ins.opcode=halt;
@@ -402,7 +398,7 @@ Instruction execI(Instruction ins)
                 error_flag[2]=1;
                 ins.opcode=halt;
             }
-            if((ins.shamt%2)!=0)
+            if(((reg[ins.rs]+ins.shamt)%2)!=0)
             {
                 error_flag[3]=1;
                 ins.opcode=halt;
@@ -442,15 +438,15 @@ Instruction execI(Instruction ins)
             break;
         case 0x0C:
             if(error_flag[0]==0)
-                reg[ins.rt]=reg[ins.rs]&ins.shamt;
+                reg[ins.rt]=reg[ins.rs]&(unsigned)ins.shamt;
             break;
         case 0x0D:
             if(error_flag[0]==0)
-                reg[ins.rt]=reg[ins.rs]|ins.shamt;
+                reg[ins.rt]=reg[ins.rs]|(unsigned)ins.shamt;
             break;
         case 0x0E:
             if(error_flag[0]==0)
-                reg[ins.rt]=~(reg[ins.rs]|ins.shamt);
+                reg[ins.rt]=~(reg[ins.rs]|(unsigned)ins.shamt);
             break;
         case 0x0A:
             sign=ins.shamt>>15;
@@ -458,7 +454,8 @@ Instruction execI(Instruction ins)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
-            reg[ins.rt]=((int)reg[ins.rs]<ins.shamt);
+            if(error_flag[0]==0)
+                reg[ins.rt]=((int)reg[ins.rs]<ins.shamt);
             break;
         case 0x04://beq
             sign=ins.shamt>>15;
@@ -472,10 +469,10 @@ Instruction execI(Instruction ins)
                 increasing+=ins.shamt+1;
                 print();
             }
-            if(increasing>1023||increasing<0)
+           /* if(increasing>1023||increasing<0)
             {
                 error_flag[2]=1;
-            }
+            }*/
             break;
         case 0x05:
             sign=ins.shamt>>15;
@@ -490,10 +487,10 @@ Instruction execI(Instruction ins)
                 print();
 
             }
-            if(increasing>1023||increasing<0)
+            /*if(increasing>1023||increasing<0)
             {
                 error_flag[2]=1;
-            }
+            }*/
             break;
         case 0x07:
             sign=ins.shamt>>15;
@@ -526,7 +523,7 @@ Instruction execR(Instruction ins)
 {
     switch (ins.funct) {
         case 0x20:
-            reg[ins.rd]=reg[ins.rs]+reg[ins.rt];
+            
             if((reg[ins.rs]>>31)==(reg[ins.rt]>>31))
             {
                 if((reg[ins.rd]>>31)!=(reg[ins.rs]>>31))
@@ -534,12 +531,15 @@ Instruction execR(Instruction ins)
                     error_flag[1]=1;
                 }
             }
+            if(error_flag[0]==0)
+                reg[ins.rd]=reg[ins.rs]+reg[ins.rt];
             break;
         case 0x21://no overflow detection
+        if(error_flag[0]==0)
             reg[ins.rd]=reg[ins.rs]+reg[ins.rt];
             break;
         case 0x22:
-            reg[ins.rd]=reg[ins.rs]-reg[ins.rt];
+            
             if(((~reg[ins.rs]+1)>>31)==(~reg[ins.rt]+1)>>31)
             {
                 if(((~reg[ins.rs]+1)>>31)!=(reg[ins.rs]>>31))
@@ -547,41 +547,45 @@ Instruction execR(Instruction ins)
                     error_flag[1]=1;
                 }
             }
+            if(error_flag[0]==0)
+                reg[ins.rd]=reg[ins.rs]-reg[ins.rt];
             break;
         case 0x24:
-            reg[ins.rd]=reg[ins.rs]&reg[ins.rt];
+            if(error_flag[0]==0)reg[ins.rd]=reg[ins.rs]&reg[ins.rt];
             break;
         case 0x25:
-            reg[ins.rd]=reg[ins.rs]|reg[ins.rt];
+            if(error_flag[0]==0)reg[ins.rd]=reg[ins.rs]|reg[ins.rt];
             break;
         case 0x26:
-            reg[ins.rd]=reg[ins.rs]^reg[ins.rt];
+            if(error_flag[0]==0)reg[ins.rd]=reg[ins.rs]^reg[ins.rt];
             break;
         case 0x27:
-            reg[ins.rd]=~(reg[ins.rs]|reg[ins.rt]);
+            if(error_flag[0]==0)reg[ins.rd]=~(reg[ins.rs]|reg[ins.rt]);
             break;
         case 0x28:
-            reg[ins.rd]=~(reg[ins.rs]&reg[ins.rt]);
+            if(error_flag[0]==0)reg[ins.rd]=~(reg[ins.rs]&reg[ins.rt]);
             break;
         case 0x2A:
-            reg[ins.rd]=reg[ins.rs]<reg[ins.rt];
+            if(error_flag[0]==0)reg[ins.rd]=reg[ins.rs]<reg[ins.rt];
             break;
         case 0x00:
-            reg[ins.rd]=reg[ins.rt]<<ins.shamt;
+            if(error_flag[0]==0)reg[ins.rd]=reg[ins.rt]<<ins.shamt;
             break;
         case 0x02:
-            reg[ins.rd]=reg[ins.rt]>>ins.shamt;
+            if(error_flag[0]==0)reg[ins.rd]=reg[ins.rt]>>ins.shamt;
             break;
         case 0x03:
             unsigned int sign;
             sign=reg[ins.rt]>>31;
-            if(sign==1)
-            {
-                unsigned dec=0xFFFFFFFF;
-                dec=(dec>>(32-ins.shamt))<<(32-ins.shamt);
-                reg[ins.rt]=dec|reg[ins.rt];
-            }
-            else reg[ins.rd]=reg[ins.rt]>>ins.shamt;
+            if(error_flag[0]==0){
+                if(sign==1)
+                {
+                    unsigned dec=0xFFFFFFFF;
+                    dec=(dec>>(32-ins.shamt))<<(32-ins.shamt);
+                    reg[ins.rt]=dec|reg[ins.rt];
+                }
+                else reg[ins.rd]=reg[ins.rt]>>ins.shamt;
+        }
             break;
         case 0x08:
             increasing=(reg[ins.rs]-PC)/4-1;
