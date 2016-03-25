@@ -15,7 +15,7 @@ typedef struct Instruction{
 }Instruction;
 
 unsigned int inst[256]={0};
-unsigned  reg[32]={0};
+unsigned int reg[32]={0};
 unsigned int PC=0;
 unsigned int sp=0;
 unsigned int dnum=0;
@@ -24,17 +24,21 @@ unsigned int increasing=0;
 unsigned char instmemory[256][4]={'\0'};
 unsigned char datamemory[256][4]={'\0'};
 unsigned char temp_datamemory[1024]={'\0'};
-unsigned char tempmemory[1024]={'\0'};
+//unsigned char tempmemory[1024]={'\0'};
 void print();
-unsigned int execI(Instruction ins);
-unsigned int execR(Instruction ins);
-unsigned int execJ(Instruction ins);
+void _error();
+Instruction execI(Instruction ins);
+Instruction execR(Instruction ins);
+Instruction execJ(Instruction ins);
 int cycle=0;
+int error_flag[4]={0};
+FILE*iimage,*dimage,*error,*snapshot;
+
 void readfile(){
-    FILE*iimage,*dimage,*error,*snapshot;
+    
     //open file
-    iimage=fopen("./recur/iimage.bin","rb");
-    dimage=fopen("./recur/dimage.bin","rb");
+    iimage=fopen("./func/iimage.bin","rb");
+    dimage=fopen("./func/dimage.bin","rb");
     error=fopen("error_dump.rpt","wb"); 
     snapshot=fopen("snapshot.rpt","wb");
 
@@ -86,17 +90,10 @@ void readfile(){
         }
         else if(i>=2)
         {//store i>1 data
-          //  for(k=0;k<4;k++)
-           // {
                 temp_datamemory[(i-2)*4]=datamemory[i][0];
                 temp_datamemory[(i-2)*4+1]=datamemory[i][1];
                 temp_datamemory[(i-2)*4+2]=datamemory[i][2];
                 temp_datamemory[(i-2)*4+3]=datamemory[i][3];
-            ///}
-        /*    printf("%02x\n", temp_datamemory[(i-2)*4]);
-            printf("%02x\n", temp_datamemory[(i-2)*4+1]);
-            printf("%02x\n", temp_datamemory[(i-2)*4+2]);
-            printf("%02x\n", temp_datamemory[(i-2)*4+3]);*/
         }
         i++;
     }
@@ -104,12 +101,9 @@ void readfile(){
 Instruction cut(){//get rs rt rd shamt funct address opcode
     Instruction ins;
     ins.opcode=inst[increasing]>>26;//opcode here here here here
-    //printf("0x%02x----ins.opcode\n",ins.opcode);
-    //printf("0x%08x\n",instmemory[increasing][3]);
-   //printf("%d----increasing\n",increasing);
+
     if(ins.opcode==halt)
     {
-        //print
         return ins;
     }
     else if(ins.opcode==Rtype)
@@ -119,12 +113,32 @@ Instruction cut(){//get rs rt rd shamt funct address opcode
         ins.rd=(inst[increasing]<<16)>>27;
         ins.shamt=(inst[increasing]<<21)>>27;
         ins.funct=(inst[increasing]<<26)>>26;
-     /*   printf("0x%02x----Ropcode\n",ins.opcode);
-        printf("%05x----Rrs\n",ins.rs);
-        printf("%05x----Rrt\n",ins.rt);
-        printf("%05x----Rrd\n",ins.rd);
-        printf("%05x----Rshamt\n",ins.shamt);*/
-       // printf("0x%02x----Rfunct\n",ins.funct);
+        if((ins.funct!=0x00)&&(ins.funct!=0x08)&&(ins.rd==0))
+        {
+            printf("0x%02x\n", ins.funct);
+            error_flag[0]=1;
+        }
+        if((ins.rs>32)||(ins.rs<0))
+        {
+            error_flag[2]=1;
+            ins.opcode=halt;
+            _error();
+            return ins;
+        }
+        if((ins.rt>32)||(ins.rt<0))
+        {
+            error_flag[2]=1;
+            ins.opcode=halt;
+            _error();
+            return ins;
+        }
+        if((ins.rd>32)||(ins.rd<0))
+        {
+            error_flag[2]=1;
+            ins.opcode=halt;
+            _error();
+            return ins;
+        }
         execR(ins);
     }
     else if(ins.opcode==jump||ins.opcode==jal)
@@ -137,36 +151,58 @@ Instruction cut(){//get rs rt rd shamt funct address opcode
         ins.rs=(inst[increasing]<<6)>>27;
         ins.rt=(inst[increasing]<<11)>>27;
         ins.shamt=(inst[increasing]<<16)>>16;
-
+        if((ins.funct==0x08)||(ins.funct==0x09)||(ins.funct==0x23)||(ins.funct==0x21)
+            ||(ins.funct==0x25)||(ins.funct==0x20)||(ins.funct==0x24)||(ins.funct==0x0F)
+            ||(ins.funct==0x0C)||(ins.funct==0x0D)||(ins.funct==0x0E)||(ins.funct==0x0A))
+        {
+            if(ins.rt==0)
+            {   
+                printf("%d\n", ins.rt);
+                error_flag[0]=1;
+            }
+        }
         execI(ins);
     }
+    return ins;
 }
 
-unsigned int execJ(Instruction ins)
+Instruction execJ(Instruction ins)
 {
-    //printf("exeJJJJJJJJJJJJJJJJJJJJJJJJJJ\n");
     unsigned int newhead=((PC+increasing*4+4)>>28)<<28;
     unsigned int newaddress=ins.shamt<<2;
-   // printf("newhead=%04x newaddress=%08x\n\n",newhead,newaddress);
     if(ins.opcode==jump)
     {
         increasing=((newhead|newaddress)-PC)/4-1;
-        //printf("%08x\n",PC );
+        if(increasing>1023||increasing<0)
+        {
+            error_flag[2]=1;
+            ins.opcode=halt;
+            _error();
+            //print();
+            return ins;
+        }
     }
     else
     {
         reg[31]=PC+increasing*4+4;
         increasing=((newhead|newaddress)-PC)/4-1;
-        //printf("PC=%08x\n",PC );
+        if(increasing>1023||increasing<0)
+        {
+            error_flag[2]=1;
+            ins.opcode=halt;
+            _error();
+            //print();
+            return ins;
+        }
     }
     increasing++;
     print();
+    return ins;
 }
-unsigned int execI(Instruction ins)
+Instruction execI(Instruction ins)
 {
     int flag=0;
     unsigned int sign=0;
-    //printf("0x%02x----Iopcode\n",ins.opcode);
     switch (ins.opcode) {
         case 0x08:
             sign=ins.shamt>>15;
@@ -175,12 +211,13 @@ unsigned int execI(Instruction ins)
                 ins.shamt=ins.shamt|0xFFFF0000;
             }
             reg[ins.rt]=reg[ins.rs]+ins.shamt;
-            /*
-            printf("shamt:%04x\n",ins.shamt);
-            printf("rs:%02x\n",ins.rs);
-            printf("rt:%02x\n",ins.rt);
-            printf("reg[rs]:%08x\n",reg[ins.rs]);
-            printf("reg[rt]:%08x\n",reg[ins.rt]);*/
+            if((ins.shamt>>31)==(reg[ins.rs]>>31))
+            {
+                if((reg[ins.rt]>>31)!=(reg[ins.rs]>>31))
+                {
+                    error_flag[1]=1;
+                }
+            }
             break;
         case 0x09://no overflow detection
             reg[ins.rt]=reg[ins.rs]+ins.shamt;
@@ -190,6 +227,19 @@ unsigned int execI(Instruction ins)
             if(sign==1)
             {
                 ins.shamt=ins.shamt|0xFFFF0000;
+            }
+
+            if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
+            {
+                error_flag[1]=1;
+                ins.opcode=halt;
+                _error();
+                return ins;
+            }
+            if(((reg[ins.rs]+ins.shamt)%4)!=0)
+            {
+                error_flag[1]=1;
+                ins.opcode=halt;
             }
              reg[ins.rt]=temp_datamemory[reg[ins.rs]+ins.shamt];
         
@@ -202,6 +252,18 @@ unsigned int execI(Instruction ins)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
+            if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
+            {
+                error_flag[1]=1;
+                ins.opcode=halt;
+                _error();
+                return ins;
+            }
+            if(((reg[ins.rs]+ins.shamt)%2)!=0)
+            {
+                error_flag[1]=1;
+                ins.opcode=halt;
+            }
             sign=temp_datamemory[reg[ins.rs]+ins.shamt]>>7;
             reg[ins.rt]=sign;
             if(sign==1)
@@ -210,10 +272,8 @@ unsigned int execI(Instruction ins)
                 reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[reg[ins.rs]+ins.shamt+1];
             }
             else{
-                //printf("%02x\n",temp_datamemory[ins.rs+ins.shamt]);
                 reg[ins.rt]=((reg[ins.rt]>>8)<<8)|temp_datamemory[reg[ins.rs]+ins.shamt];
                 reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[reg[ins.rs]+ins.shamt+1];
-                //printf("%02x----2\n",reg[ins.rt]);
             }
             break;
         case 0x25:
@@ -221,6 +281,18 @@ unsigned int execI(Instruction ins)
             if(sign==1)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
+            }
+            if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
+            {
+                error_flag[1]=1;
+                ins.opcode=halt;
+                _error();
+                return ins;
+            }
+            if(((reg[ins.rs]+ins.shamt)%2)!=0)
+            {
+                error_flag[1]=1;
+                ins.opcode=halt;
             }
             reg[ins.rt]=reg[ins.rt]<<16|temp_datamemory[reg[ins.rs]+ins.shamt];
             reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[reg[ins.rs]+ins.shamt+1];
@@ -232,26 +304,20 @@ unsigned int execI(Instruction ins)
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
             sign=temp_datamemory[reg[ins.rs]+ins.shamt]>>7;
+            if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
+            {
+                error_flag[1]=1;
+                ins.opcode=halt;
+                //error();
+                //return ins;
+            }
             if(sign==1)
             {
-                
                 reg[ins.rt]=0xFFFFFF00|temp_datamemory[reg[ins.rs]+ins.shamt];
-                //reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt+1];
             }
             else{
-              //  printf("sign=====%d %d\n",sign,ins.rt );
                 reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[reg[ins.rs]+ins.shamt];
-               // reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[ins.rs+ins.shamt+1];
-            }/*
-            sign=reg[ins.rs+ins.shamt]>>31;
-            if(sign==1)
-            {
-                reg[ins.rt]=(int)(0xFFFFFF00|temp_datamemory[ins.rs+ins.shamt]);
             }
-            else{
-                reg[ins.rt]=(int)temp_datamemory[ins.rs+ins.shamt];
-            }*/
-           // printf("%d  %d   %d========\n",ins.shamt,ins.rs,ins.rt);
             break;
         case 0x24:
             sign=ins.shamt>>15;
@@ -259,36 +325,44 @@ unsigned int execI(Instruction ins)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
+            if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
+            {
+                error_flag[2]=1;
+                ins.opcode=halt;
+                _error();
+                return ins;
+            }
              reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[reg[ins.rs]+ins.shamt];
             break;
         case 0x2B:
-            //printf("I AM RAAAAAAAAA\n");
             sign=ins.shamt>>31;
-            //printf("%d\n",sign );
             if(sign==1)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
-            datamemory[ins.rs+ins.shamt][0]=(char)(reg[ins.rt]>>24);
-            datamemory[ins.rs+ins.shamt][1]=(char)(reg[ins.rt]>>16);
-            datamemory[ins.rs+ins.shamt][2]=(char)(reg[ins.rt]>>8);
-            datamemory[ins.rs+ins.shamt][3]=(char)(reg[ins.rt]);
-
+            if((ins.shamt>>31)==(reg[ins.rs]>>31))
+            {
+                if((reg[ins.rt]>>31)!=(reg[ins.rs]>>31))
+                {
+                    error_flag[1]=1;
+                }
+            }
+            if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
+            {
+                error_flag[2]=1;
+                ins.opcode=halt;
+                _error();
+                return ins;
+            }
+            if(((reg[ins.rs]+ins.shamt)%4)!=0)
+            {
+                error_flag[1]=1;
+                ins.opcode=halt;
+            }
             temp_datamemory[reg[ins.rs]+ins.shamt]=(char)(reg[ins.rt]>>24);
             temp_datamemory[reg[ins.rs]+ins.shamt+1]=(char)(reg[ins.rt]>>16);
             temp_datamemory[reg[ins.rs]+ins.shamt+2]=(char)(reg[ins.rt]>>8);
             temp_datamemory[reg[ins.rs]+ins.shamt+3]=(char)(reg[ins.rt]);
-/*
-            printf("%08x\n",(int)(char)(reg[ins.rt] >> 24) );
-            printf("%08x\n",(int)(char)(reg[ins.rt] >> 16) );
-            printf("%08x\n",(int)(char)(reg[ins.rt] >> 8) );
-            printf("%08x\n",(int)(char)(reg[ins.rt] ) );
-
-            printf("%08x\n",temp_datamemory[ins.rs+ins.shamt]);
-            printf("%08x\n",temp_datamemory[ins.rs+ins.shamt+1]);
-            printf("%08x\n",temp_datamemory[ins.rs+ins.shamt+2]);
-            printf("%08x\n",temp_datamemory[ins.rs+ins.shamt+3]);    
-*/
             break;
         case 0x29:
             sign=ins.shamt>>15;
@@ -296,14 +370,28 @@ unsigned int execI(Instruction ins)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
-            datamemory[reg[ins.rs]+ins.shamt][0]=(char)(reg[ins.rt]&0x0000FFFF)>>24;
-            datamemory[reg[ins.rs]+ins.shamt][1]=((reg[ins.rt]&0x0000FFFF)<<16)>>16;
-            //printf("%08x\n",datamemory[ins.rs+ins.shamt][0]);
-            //printf("%08x\n",datamemory[ins.rs+ins.shamt][1]);
+            if((ins.shamt>>31)==(reg[ins.rs]>>31))
+            {
+                if((reg[ins.rt]>>31)!=(reg[ins.rs]>>31))
+                {
+                    error_flag[1]=1;
+                }
+            }
+            if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
+            {
+                error_flag[2]=1;
+                ins.opcode=halt;
+                _error();
+                return ins;
+            }
+            if(((reg[ins.rs]+ins.shamt)%2)!=0)
+            {
+                error_flag[1]=1;
+                ins.opcode=halt;
+            }
             temp_datamemory[reg[ins.rs]+ins.shamt]=(char)(reg[ins.rt]&0x0000FFFF)>>24;
             temp_datamemory[reg[ins.rs]+ins.shamt+1]=((reg[ins.rt]&0x0000FFFF)<<16)>>16;
-            //printf("%08x\n",temp_datamemory[ins.rs+ins.shamt]);
-            //printf("%08x====================SH\n",temp_datamemory[ins.rs+ins.shamt+1]);
+            
             break;
         case 0x28:
             sign=ins.shamt>>15;
@@ -311,7 +399,20 @@ unsigned int execI(Instruction ins)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
-            //datamemory[reg[ins.rs]+ins.shamt][0]=(reg[ins.rt]&0x000000FF)>>24;
+            if((ins.shamt>>31)==(reg[ins.rs]>>31))
+            {
+                if((reg[ins.rt]>>31)!=(reg[ins.rs]>>31))
+                {
+                    error_flag[1]=1;
+                }
+            }
+            if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
+            {
+                error_flag[2]=1;
+                ins.opcode=halt;
+                _error();
+                return ins;
+            }
             temp_datamemory[reg[ins.rs]+ins.shamt]=(char)((reg[ins.rt]&0x000000FF)>>24);
             break;
         case 0x0F:
@@ -332,7 +433,7 @@ unsigned int execI(Instruction ins)
             {
                 ins.shamt=0xFFFF0000|ins.shamt;
             }
-            reg[ins.rt]=(reg[ins.rs]<ins.shamt);
+            reg[ins.rt]=((int)reg[ins.rs]<ins.shamt);
             break;
         case 0x04:
             sign=ins.shamt>>15;
@@ -346,6 +447,10 @@ unsigned int execI(Instruction ins)
                 increasing+=ins.shamt+1;
                 print();
             }
+            if(increasing>1023||increasing<0)
+            {
+                error_flag[2]=1;
+            }
             break;
         case 0x05:
             sign=ins.shamt>>15;
@@ -355,12 +460,14 @@ unsigned int execI(Instruction ins)
             }
             if(reg[ins.rs]!=reg[ins.rt])
             {
-               // printf("In BNE======%d %d=====increasing======%d\n",ins.rs,ins.rt,increasing);
                 flag=1;
                 increasing+=ins.shamt+1;
-               // printf("shamt======%d  =====increasing======%d\n",ins.shamt,increasing);
                 print();
 
+            }
+            if(increasing>1023||increasing<0)
+            {
+                error_flag[2]=1;
             }
             break;
         case 0x07:
@@ -380,25 +487,37 @@ unsigned int execI(Instruction ins)
             break;
     }
     //error handle
-    if(!flag)
+    if(!flag&&(ins.opcode!=halt))
     {
         increasing++;
-        //printf("%02x\n",ins.opcode );
         print();
     }
 }
-unsigned int execR(Instruction ins)
+Instruction execR(Instruction ins)
 {
     switch (ins.funct) {
-           // printf("%d---funct\n",ins.funct);
         case 0x20:
             reg[ins.rd]=reg[ins.rs]+reg[ins.rt];
+            if((reg[ins.rs]>>31)==(reg[ins.rt]>>31))
+            {
+                if((reg[ins.rd]>>31)!=(reg[ins.rs]>>31))
+                {
+                    error_flag[1]=1;
+                }
+            }
             break;
         case 0x21://no overflow detection
             reg[ins.rd]=reg[ins.rs]+reg[ins.rt];
             break;
         case 0x22:
             reg[ins.rd]=reg[ins.rs]-reg[ins.rt];
+            if(((~reg[ins.rs]+1)>>31)==(~reg[ins.rt]+1)>>31)
+            {
+                if(((~reg[ins.rs]+1)>>31)!=(reg[ins.rs]>>31))
+                {
+                    error_flag[1]=1;
+                }
+            }
             break;
         case 0x24:
             reg[ins.rd]=reg[ins.rs]&reg[ins.rt];
@@ -435,7 +554,7 @@ unsigned int execR(Instruction ins)
             }
             else reg[ins.rd]=reg[ins.rt]>>ins.shamt;
             break;
-        case 0x08://QAQ
+        case 0x08:
             increasing=(reg[ins.rs]-PC)/4-1;
             increasing++;
             break;
@@ -443,20 +562,35 @@ unsigned int execR(Instruction ins)
             break;
     }
     //error handle
-    if (ins.funct!=0x08) {
+    if (ins.funct!=0x08&&(ins.opcode!=halt)) {
         increasing++;//pc increasing amount
     }
     print();
+    _error();
 }
 
 void print(){
     int i=0;
-    printf("cycle %02d\n",cycle);
+    fprintf(snapshot,"cycle %d\n",cycle);
     for(i=0;i<32;i++)
     {
-        printf("$%d: 0x%08X\n",i,reg[i]);
+        fprintf(snapshot,"$%02d: 0x%08X\n",i,reg[i]);
     }
-    printf("PC: 0x%08X\n\n",PC+increasing*4);
+    fprintf(snapshot,"PC: 0x%08X\n\n\n",PC+increasing*4);
+}
+
+void _error(){
+    int i=0;
+    if(error_flag[0]==1)
+        fprintf(error, "In cycle %d: Write $0 Error\n",cycle);
+    if(error_flag[1]==1)
+        fprintf(error,"In cycle %d: Number Overflow\n",cycle);
+    if(error_flag[2]==1)
+        fprintf(error,"In cycle %d: Address Overflow\n",cycle);
+    if(error_flag[3]==1)
+        fprintf(error,"In cycle %d: Misalignment Error\n",cycle);
+    for(i=0;i<4;i++)
+        error_flag[i]=0;
 }
 
 int main()
@@ -466,11 +600,13 @@ int main()
     while (cycle<500000) {
        if(cycle==0){
         print();
+        _error();
         cycle++;
         continue;
     }
     if(cut().opcode==halt)return 0;
-        cycle++;
+    _error();
+    cycle++;
     }
     return 0;
 }
