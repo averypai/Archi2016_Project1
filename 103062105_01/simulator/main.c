@@ -138,30 +138,35 @@ Instruction cut(){//get rs rt rd shamt funct address opcode
             _error();
             return ins;
         }
-        execR(ins);
+        ins=execR(ins);
     }
     else if(ins.opcode==jump||ins.opcode==jal)
     {
         ins.shamt=(inst[increasing]<<6)>>6;
-        execJ(ins);
+        ins=execJ(ins);
     }
     else
     {printf("0x%02x\n", ins.opcode);
         ins.rs=(inst[increasing]<<6)>>27;
         ins.rt=(inst[increasing]<<11)>>27;
         ins.shamt=(inst[increasing]<<16)>>16;
+
+        printf("%d\n", ins.rt);printf("%d\n", ins.rs);printf("%d\n", ins.shamt);
         if((ins.opcode==0x08)||(ins.opcode==0x09)||(ins.opcode==0x23)||(ins.opcode==0x21)
             ||(ins.opcode==0x25)||(ins.opcode==0x20)||(ins.opcode==0x24)||(ins.opcode==0x0F)
             ||(ins.opcode==0x0C)||(ins.opcode==0x0D)||(ins.opcode==0x0E)||(ins.opcode==0x0A))
         {
             if(ins.rt==0)
             {   
-                printf("%d\n", ins.rt);
+                printf("WRONG");
                 error_flag[0]=1;
-                return ins;
             }
+            else
+            {}
         }
-        execI(ins);
+        printf("WHY\n");
+        ins=execI(ins);
+        _error();
     }
     return ins;
 }
@@ -178,7 +183,6 @@ Instruction execJ(Instruction ins)
             error_flag[2]=1;
             ins.opcode=halt;
             _error();
-            //print();
             return ins;
         }
     }
@@ -228,24 +232,34 @@ Instruction execI(Instruction ins)
             {
                 ins.shamt=ins.shamt|0xFFFF0000;
             }
-
+            if (sign==(reg[ins.rs]>>31)&&(sign!=((reg[ins.rs]+ins.shamt)>>31)))
+            {
+                error_flag[1]=1;
+            }
+            //printf("====1====\n");
             if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
             {
-                error_flag[1]=1;
+                error_flag[2]=1;
                 ins.opcode=halt;
-                _error();
-                return ins;
             }
-            if(((reg[ins.rs]+ins.shamt)%4)!=0)
+           // printf("====2====\n");
+            if((ins.shamt%4)!=0)
             {
-                error_flag[1]=1;
+                error_flag[3]=1;
                 ins.opcode=halt;
-            }
-             reg[ins.rt]=temp_datamemory[reg[ins.rs]+ins.shamt];
+            }//printf("====%d %d\n\n====\n",error_flag[0],error_flag[1]);
+            
+            if((error_flag[2]==1)||(error_flag[3])==1)
+                return ins;
+
+            if(ins.rt!=0){    
+                reg[ins.rt]=temp_datamemory[reg[ins.rs]+ins.shamt];
         
-            for(int i=1;i<4;i++){    
-                reg[ins.rt]=((reg[ins.rt]<<8)|temp_datamemory[reg[ins.rs]+ins.shamt+i]);
+                for(int i=1;i<4;i++){    
+                    reg[ins.rt]=((reg[ins.rt]<<8)|temp_datamemory[reg[ins.rs]+ins.shamt+i]);
+                }
             }
+           // printf("====4====\n");
             break;
         case 0x21:
             if(sign==1)
@@ -254,14 +268,12 @@ Instruction execI(Instruction ins)
             }
             if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
             {
-                error_flag[1]=1;
+                error_flag[2]=1;
                 ins.opcode=halt;
-                _error();
-                return ins;
             }
-            if(((reg[ins.rs]+ins.shamt)%2)!=0)
+            if((ins.shamt%2)!=0)
             {
-                error_flag[1]=1;
+                error_flag[3]=1;
                 ins.opcode=halt;
             }
             sign=temp_datamemory[reg[ins.rs]+ins.shamt]>>7;
@@ -284,14 +296,12 @@ Instruction execI(Instruction ins)
             }
             if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
             {
-                error_flag[1]=1;
+                error_flag[2]=1;
                 ins.opcode=halt;
-                _error();
-                return ins;
             }
-            if(((reg[ins.rs]+ins.shamt)%2)!=0)
+            if((ins.shamt%2)!=0)
             {
-                error_flag[1]=1;
+                error_flag[3]=1;
                 ins.opcode=halt;
             }
             reg[ins.rt]=reg[ins.rt]<<16|temp_datamemory[reg[ins.rs]+ins.shamt];
@@ -306,10 +316,8 @@ Instruction execI(Instruction ins)
             sign=temp_datamemory[reg[ins.rs]+ins.shamt]>>7;
             if (((reg[ins.rs]+ins.shamt)<0)||((reg[ins.rs]+ins.shamt)>1023))
             {
-                error_flag[1]=1;
+                error_flag[2]=1;
                 ins.opcode=halt;
-                //error();
-                //return ins;
             }
             if(sign==1)
             {
@@ -329,8 +337,6 @@ Instruction execI(Instruction ins)
             {
                 error_flag[2]=1;
                 ins.opcode=halt;
-                _error();
-                return ins;
             }
              reg[ins.rt]=reg[ins.rt]<<8|temp_datamemory[reg[ins.rs]+ins.shamt];
             break;
@@ -354,9 +360,9 @@ Instruction execI(Instruction ins)
                 _error();
                 return ins;
             }
-            if(((reg[ins.rs]+ins.shamt)%4)!=0)
+            if((ins.shamt%4)!=0)
             {
-                error_flag[1]=1;
+                error_flag[3]=1;
                 ins.opcode=halt;
             }
             temp_datamemory[reg[ins.rs]+ins.shamt]=(char)(reg[ins.rt]>>24);
@@ -384,9 +390,9 @@ Instruction execI(Instruction ins)
                 _error();
                 return ins;
             }
-            if(((reg[ins.rs]+ins.shamt)%2)!=0)
+            if((ins.shamt%2)!=0)
             {
-                error_flag[1]=1;
+                error_flag[3]=1;
                 ins.opcode=halt;
             }
             temp_datamemory[reg[ins.rs]+ins.shamt]=(char)(reg[ins.rt]&0x0000FFFF)>>24;
@@ -410,8 +416,6 @@ Instruction execI(Instruction ins)
             {
                 error_flag[2]=1;
                 ins.opcode=halt;
-                _error();
-                return ins;
             }
             temp_datamemory[reg[ins.rs]+ins.shamt]=(char)((reg[ins.rt]&0x000000FF)>>24);
             break;
@@ -487,10 +491,14 @@ Instruction execI(Instruction ins)
             break;
     }
     //error handle
+    printf("BREAKKKKKKKKKKKKKK\n");
     if(!flag&&(ins.opcode!=halt))
     {
         increasing++;
         print();
+    }
+    else if(ins.opcode==halt){
+        //return ins;
     }
 }
 Instruction execR(Instruction ins)
@@ -591,6 +599,7 @@ void _error(){
         fprintf(error,"In cycle %d: Misalignment Error\n",cycle);
     for(i=0;i<4;i++)
         error_flag[i]=0;
+    return;
 }
 
 int main()
