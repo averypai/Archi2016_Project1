@@ -37,8 +37,8 @@ FILE*iimage,*dimage,*error,*snapshot;
 void readfile(){
     
     //open file
-    iimage=fopen("./func/iimage.bin","rb");
-    dimage=fopen("./func/dimage.bin","rb");
+    iimage=fopen("./recur/iimage.bin","rb");
+    dimage=fopen("./recur/dimage.bin","rb");
     error=fopen("error_dump.rpt","wb"); 
     snapshot=fopen("snapshot.rpt","wb");
 
