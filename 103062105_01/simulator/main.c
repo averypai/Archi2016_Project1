@@ -93,24 +93,24 @@ void readfile(){
                 temp_datamemory[(i-2)*4+2]=datamemory[i][2];
                 temp_datamemory[(i-2)*4+3]=datamemory[i][3];
             ///}
-            printf("%02x\n", temp_datamemory[(i-2)*4]);
+        /*    printf("%02x\n", temp_datamemory[(i-2)*4]);
             printf("%02x\n", temp_datamemory[(i-2)*4+1]);
             printf("%02x\n", temp_datamemory[(i-2)*4+2]);
-            printf("%02x\n", temp_datamemory[(i-2)*4+3]);
+            printf("%02x\n", temp_datamemory[(i-2)*4+3]);*/
         }
         i++;
     }
 }
-void cut(){//get rs rt rd shamt funct address opcode
+Instruction cut(){//get rs rt rd shamt funct address opcode
     Instruction ins;
     ins.opcode=inst[increasing]>>26;//opcode here here here here
-    printf("0x%02x----ins.opcode\n",ins.opcode);
+    //printf("0x%02x----ins.opcode\n",ins.opcode);
     //printf("0x%08x\n",instmemory[increasing][3]);
-    printf("%d----increasing\n",increasing);
+   //printf("%d----increasing\n",increasing);
     if(ins.opcode==halt)
     {
         //print
-        exit(1);
+        return ins;
     }
     else if(ins.opcode==Rtype)
     {
@@ -124,7 +124,7 @@ void cut(){//get rs rt rd shamt funct address opcode
         printf("%05x----Rrt\n",ins.rt);
         printf("%05x----Rrd\n",ins.rd);
         printf("%05x----Rshamt\n",ins.shamt);*/
-        printf("0x%02x----Rfunct\n",ins.funct);
+       // printf("0x%02x----Rfunct\n",ins.funct);
         execR(ins);
     }
     else if(ins.opcode==jump||ins.opcode==jal)
@@ -144,7 +144,7 @@ void cut(){//get rs rt rd shamt funct address opcode
 
 unsigned int execJ(Instruction ins)
 {
-    printf("exeJJJJJJJJJJJJJJJJJJJJJJJJJJ\n");
+    //printf("exeJJJJJJJJJJJJJJJJJJJJJJJJJJ\n");
     unsigned int newhead=((PC+increasing*4+4)>>28)<<28;
     unsigned int newaddress=ins.shamt<<2;
    // printf("newhead=%04x newaddress=%08x\n\n",newhead,newaddress);
@@ -383,14 +383,14 @@ unsigned int execI(Instruction ins)
     if(!flag)
     {
         increasing++;
-        printf("%02x\n",ins.opcode );
+        //printf("%02x\n",ins.opcode );
         print();
     }
 }
 unsigned int execR(Instruction ins)
 {
     switch (ins.funct) {
-            printf("%d---funct\n",ins.funct);
+           // printf("%d---funct\n",ins.funct);
         case 0x20:
             reg[ins.rd]=reg[ins.rs]+reg[ins.rt];
             break;
@@ -451,38 +451,25 @@ unsigned int execR(Instruction ins)
 
 void print(){
     int i=0;
-    printf("cycle %2d\n",cycle);
+    printf("cycle %02d\n",cycle);
     for(i=0;i<32;i++)
     {
-        printf("$%d:0x%08X\n",i,reg[i]);
+        printf("$%d: 0x%08X\n",i,reg[i]);
     }
-    printf("PC:0x%08X\n\n",PC+increasing*4);
+    printf("PC: 0x%08X\n\n",PC+increasing*4);
 }
 
 int main()
 {
     readfile();
     int i=0;
-    while (cycle<29) {
+    while (cycle<500000) {
        if(cycle==0){
         print();
         cycle++;
         continue;
     }
-     cut();
-    /* printf("%8x\n",temp_datamemory[32]);
-     int shift=0;
-     for(i=768;i>=736;i=i-4)
-     {
-        shift=temp_datamemory[i];
-        shift=shift<<8|temp_datamemory[i+1];
-        shift=shift<<8|temp_datamemory[i+2];
-        shift=shift<<8|temp_datamemory[i+3];
-
-        printf("--------------%d\n",i );
-        printf("shift======%X\n",shift);
-        printf("--------------\n");
-     }*/
+    if(cut().opcode==halt)return 0;
         cycle++;
     }
     return 0;
